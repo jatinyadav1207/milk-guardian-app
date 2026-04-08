@@ -57,6 +57,14 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        milkguard: {
+          success: "hsl(var(--milkguard-success))",
+          warning: "hsl(var(--milkguard-warning))",
+          danger: "hsl(var(--milkguard-danger))",
+          info: "hsl(var(--milkguard-info))",
+          teal: "hsl(var(--milkguard-teal))",
+          navy: "hsl(var(--milkguard-navy))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
