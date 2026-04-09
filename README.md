@@ -1,3 +1,3 @@
-# Welcome to your Lovable project
+# Milk adulteration detection device
 
 TODO: Document your project here
