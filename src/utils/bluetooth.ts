@@ -25,9 +25,6 @@ type BluetoothRemoteGATTCharacteristic = EventTarget & {
 };
 
 // MilkGuard standard BLE service — matches the Arduino firmware in Settings.
-export const MILKGUARD_SERVICE_UUID = "4d696c6b-4775-4172-6400-000000000001";
-export const PH_CHAR_UUID           = "4d696c6b-4775-4172-6400-0000000000ph".replace("ph", "70") + "1";
-// Use clean fixed UUIDs (the above is messy) — define explicit ones:
 export const SERVICE_UUID = "0000a100-0000-1000-8000-00805f9b34fb";
 export const CHAR_PH_UUID = "0000a101-0000-1000-8000-00805f9b34fb";
 export const CHAR_TDS_UUID = "0000a102-0000-1000-8000-00805f9b34fb";
