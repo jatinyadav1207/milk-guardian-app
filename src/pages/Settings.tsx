@@ -2,17 +2,17 @@ import { useMilkGuard } from "@/contexts/MilkGuardContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { BluetoothConnect } from "@/components/BluetoothConnect";
 import {
-  Wifi,
-  WifiOff,
-  RefreshCw,
   Bell,
   Code,
   Shield,
   Zap,
   Cpu,
   AlertTriangle,
+  Bluetooth,
 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Settings() {
   const { isDeviceConnected, setDeviceConnected, simulateReadings } = useMilkGuard();
