@@ -1,5 +1,29 @@
 import { SensorReadings } from "./milkAnalysis";
 
+// Minimal Web Bluetooth types (browsers ship the impl; TS lib doesn't include it).
+type BluetoothDevice = EventTarget & {
+  readonly id: string;
+  readonly name?: string;
+  readonly gatt?: BluetoothRemoteGATTServer;
+};
+type BluetoothRemoteGATTServer = {
+  readonly device: BluetoothDevice;
+  readonly connected: boolean;
+  connect(): Promise<BluetoothRemoteGATTServer>;
+  disconnect(): void;
+  getPrimaryService(uuid: string): Promise<BluetoothRemoteGATTService>;
+};
+type BluetoothRemoteGATTService = {
+  getCharacteristic(uuid: string): Promise<BluetoothRemoteGATTCharacteristic>;
+};
+type BluetoothRemoteGATTCharacteristic = EventTarget & {
+  readonly value?: DataView;
+  readValue(): Promise<DataView>;
+  writeValue(value: BufferSource): Promise<void>;
+  startNotifications(): Promise<BluetoothRemoteGATTCharacteristic>;
+  stopNotifications(): Promise<BluetoothRemoteGATTCharacteristic>;
+};
+
 // MilkGuard standard BLE service — matches the Arduino firmware in Settings.
 export const MILKGUARD_SERVICE_UUID = "4d696c6b-4775-4172-6400-000000000001";
 export const PH_CHAR_UUID           = "4d696c6b-4775-4172-6400-0000000000ph".replace("ph", "70") + "1";
