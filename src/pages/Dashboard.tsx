@@ -23,6 +23,7 @@ import {
   getVerdictBg,
   analyzeMilk,
 } from "@/utils/milkAnalysis";
+import { BluetoothConnect } from "@/components/BluetoothConnect";
 
 export default function Dashboard() {
   const {
@@ -102,6 +103,9 @@ export default function Dashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Bluetooth connection */}
+      <BluetoothConnect />
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

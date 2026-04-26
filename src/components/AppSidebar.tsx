@@ -4,8 +4,8 @@ import {
   SlidersHorizontal,
   Settings,
   Droplets,
-  Wifi,
-  WifiOff,
+  Bluetooth,
+  BluetoothConnected,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -91,9 +91,9 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-2">
           {isDeviceConnected ? (
-            <Wifi className="h-4 w-4 text-milkguard-success" />
+            <BluetoothConnected className="h-4 w-4 text-milkguard-success" />
           ) : (
-            <WifiOff className="h-4 w-4 text-muted-foreground" />
+            <Bluetooth className="h-4 w-4 text-muted-foreground" />
           )}
           {!collapsed && (
             <span className={`text-xs ${isDeviceConnected ? "text-milkguard-success" : "text-muted-foreground"}`}>
