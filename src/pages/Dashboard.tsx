@@ -104,6 +104,9 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Bluetooth connection */}
+      <BluetoothConnect />
+
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
