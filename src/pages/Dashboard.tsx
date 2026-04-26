@@ -23,6 +23,7 @@ import {
   getVerdictBg,
   analyzeMilk,
 } from "@/utils/milkAnalysis";
+import { BluetoothConnect } from "@/components/BluetoothConnect";
 
 export default function Dashboard() {
   const {
