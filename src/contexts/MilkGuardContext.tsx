@@ -192,6 +192,10 @@ export function MilkGuardProvider({ children }: { children: React.ReactNode }) {
     <MilkGuardContext.Provider
       value={{
         isDeviceConnected,
+        connectionType,
+        deviceName,
+        bluetoothSupported,
+        liveStream,
         currentReadings,
         tests,
         baselines,
@@ -204,6 +208,11 @@ export function MilkGuardProvider({ children }: { children: React.ReactNode }) {
         setActiveBaseline,
         deleteTest,
         setDeviceConnected,
+        connectBluetooth,
+        disconnectBluetooth,
+        refreshReadings,
+        setLiveStream,
+        triggerBuzzer,
       }}
     >
       {children}
