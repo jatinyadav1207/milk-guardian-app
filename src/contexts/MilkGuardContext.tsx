@@ -86,7 +86,69 @@ export function MilkGuardProvider({ children }: { children: React.ReactNode }) {
       gas: Math.round(r.gas + (Math.random() - 0.5) * 10),
     });
     setDeviceConnected(true);
+    setConnectionType("simulated");
+    setDeviceName("Simulator");
   }, []);
+
+  // Bluetooth wiring
+  const liveStreamRef = useRef(liveStream);
+  useEffect(() => { liveStreamRef.current = liveStream; }, [liveStream]);
+
+  useEffect(() => {
+    bluetoothClient.onReadings((r) => {
+      if (liveStreamRef.current) setCurrentReadings(r);
+    });
+    bluetoothClient.onStatus((connected) => {
+      setDeviceConnected(connected);
+      if (!connected) {
+        setConnectionType("none");
+        setDeviceName(null);
+      }
+    });
+  }, []);
+
+  const connectBluetooth = useCallback(async () => {
+    await bluetoothClient.connect();
+    setConnectionType("bluetooth");
+    setDeviceName(bluetoothClient.deviceName());
+    setDeviceConnected(true);
+    if (liveStreamRef.current) {
+      await bluetoothClient.startNotifications();
+    } else {
+      await bluetoothClient.readOnce();
+    }
+  }, []);
+
+  const disconnectBluetooth = useCallback(async () => {
+    await bluetoothClient.disconnect();
+    setConnectionType("none");
+    setDeviceName(null);
+    setDeviceConnected(false);
+  }, []);
+
+  const refreshReadings = useCallback(async () => {
+    if (connectionType === "bluetooth") {
+      const r = await bluetoothClient.readOnce();
+      if (r) setCurrentReadings(r);
+    } else {
+      // fallback: re-simulate
+      // (no-op if not connected)
+    }
+  }, [connectionType]);
+
+  const setLiveStream = useCallback((v: boolean) => {
+    setLiveStreamState(v);
+    if (connectionType === "bluetooth") {
+      if (v) bluetoothClient.startNotifications().catch(() => {});
+      else bluetoothClient.stopNotifications().catch(() => {});
+    }
+  }, [connectionType]);
+
+  const triggerBuzzer = useCallback(async () => {
+    if (connectionType === "bluetooth") {
+      await bluetoothClient.triggerBuzzer(1000);
+    }
+  }, [connectionType]);
 
   const runTest = useCallback((notes?: string): TestRecord | null => {
     if (!currentReadings) return null;
