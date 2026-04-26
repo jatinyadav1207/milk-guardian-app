@@ -15,69 +15,51 @@ import {
 import { toast } from "sonner";
 
 export default function Settings() {
-  const { isDeviceConnected, setDeviceConnected, simulateReadings } = useMilkGuard();
+  const { isDeviceConnected, connectionType, simulateReadings, triggerBuzzer } = useMilkGuard();
+
+  const handleBuzzer = async () => {
+    try {
+      await triggerBuzzer();
+      toast.success("Buzzer triggered");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to trigger buzzer");
+    }
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Device management and ESP32 integration guide
+          Device pairing, Bluetooth controls and ESP32 integration guide
         </p>
       </div>
 
-      {/* Device Status */}
+      {/* Bluetooth pairing */}
+      <div>
+        <h2 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+          <Bluetooth className="h-4 w-4 text-primary" />
+          Bluetooth Connection
+        </h2>
+        <BluetoothConnect />
+      </div>
+
+      {/* Demo */}
       <Card className="animate-slide-up">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Cpu className="h-4 w-4 text-primary" />
-            ESP32 Device Status
+            Demo Mode
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-            <div className="flex items-center gap-3">
-              {isDeviceConnected ? (
-                <Wifi className="h-5 w-5 text-milkguard-success" />
-              ) : (
-                <WifiOff className="h-5 w-5 text-muted-foreground" />
-              )}
-              <div>
-                <p className="font-medium text-sm">
-                  {isDeviceConnected ? "Device Connected" : "Device Disconnected"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {isDeviceConnected
-                    ? "ESP32 is sending sensor data"
-                    : "No ESP32 device detected on the network"}
-                </p>
-              </div>
-            </div>
-            <Badge
-              variant="outline"
-              className={
-                isDeviceConnected
-                  ? "border-milkguard-success/40 text-milkguard-success"
-                  : "border-border"
-              }
-            >
-              {isDeviceConnected ? "Online" : "Offline"}
-            </Badge>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setDeviceConnected(!isDeviceConnected)}
-            >
-              <RefreshCw className="h-4 w-4" />
-              Toggle Connection
-            </Button>
-            <Button variant="outline" size="sm" onClick={simulateReadings}>
-              <Zap className="h-4 w-4" />
-              Simulate Data
-            </Button>
-          </div>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-3">
+            No hardware yet? Generate sample readings to explore the app.
+          </p>
+          <Button variant="outline" size="sm" onClick={simulateReadings}>
+            <Zap className="h-4 w-4" />
+            Simulate Data
+          </Button>
         </CardContent>
       </Card>
 
@@ -91,16 +73,21 @@ export default function Settings() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-3">
-            Trigger alerts on the ESP32 (requires MOSFET module for buzzer control).
+            Trigger the buzzer alert on the ESP32 (requires MOSFET + buzzer wired to the configured pin).
           </p>
-          <Button variant="outline" size="sm" disabled={!isDeviceConnected}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBuzzer}
+            disabled={connectionType !== "bluetooth" || !isDeviceConnected}
+          >
             <Bell className="h-4 w-4" />
             Trigger Buzzer Alert
           </Button>
-          {!isDeviceConnected && (
+          {connectionType !== "bluetooth" && (
             <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
               <AlertTriangle className="h-3 w-3" />
-              Connect device first to use controls
+              Connect via Bluetooth first to use controls
             </p>
           )}
         </CardContent>
