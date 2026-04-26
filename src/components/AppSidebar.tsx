@@ -4,8 +4,8 @@ import {
   SlidersHorizontal,
   Settings,
   Droplets,
-  Wifi,
-  WifiOff,
+  Bluetooth,
+  BluetoothConnected,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
