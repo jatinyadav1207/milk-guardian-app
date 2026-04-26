@@ -48,6 +48,9 @@ function loadFromStorage<T>(key: string, fallback: T): T {
 
 export function MilkGuardProvider({ children }: { children: React.ReactNode }) {
   const [isDeviceConnected, setDeviceConnected] = useState(false);
+  const [connectionType, setConnectionType] = useState<"none" | "bluetooth" | "simulated">("none");
+  const [deviceName, setDeviceName] = useState<string | null>(null);
+  const [liveStream, setLiveStreamState] = useState(true);
   const [currentReadings, setCurrentReadings] = useState<SensorReadings | null>(null);
   const [tests, setTests] = useState<TestRecord[]>(() => loadFromStorage("mg_tests", []));
   const [baselines, setBaselines] = useState<Baseline[]>(() =>
@@ -56,6 +59,7 @@ export function MilkGuardProvider({ children }: { children: React.ReactNode }) {
   const [activeBaselineId, setActiveBaselineId] = useState<string>(() =>
     loadFromStorage("mg_active_baseline", "default")
   );
+  const bluetoothSupported = MilkGuardBluetooth.isSupported();
 
   const activeBaseline = baselines.find((b) => b.id === activeBaselineId) || baselines[0] || DEFAULT_BASELINE;
 
