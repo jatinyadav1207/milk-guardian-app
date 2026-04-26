@@ -98,42 +98,91 @@ export default function Settings() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Code className="h-4 w-4 text-primary" />
-            ESP32 Integration Guide
+            ESP32 BLE Firmware
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Your ESP32 should send sensor readings as a JSON POST request to the app.
-            In a real deployment, configure a WebSocket or HTTP endpoint.
+            Flash this Arduino sketch on your ESP32. It advertises a BLE service that MilkGuard pairs with —
+            no Wi-Fi, no servers, no app store. Just open MilkGuard and tap{" "}
+            <span className="font-medium text-foreground">Connect via Bluetooth</span>.
           </p>
-          <div className="rounded-lg bg-sidebar p-4 overflow-x-auto">
-            <pre className="text-xs text-sidebar-foreground font-mono">
-{`// ESP32 Arduino — Send readings via HTTP POST
-#include <WiFi.h>
-#include <HTTPClient.h>
 
-void sendReadings(float ph, int tds, int gas) {
-  HTTPClient http;
-  http.begin("http://<APP_URL>/api/readings");
-  http.addHeader("Content-Type", "application/json");
-
-  String json = "{\\"ph\\":" + String(ph, 2)
-    + ",\\"tds\\":" + String(tds)
-    + ",\\"gas\\":" + String(gas) + "}";
-
-  http.POST(json);
-  http.end();
-}`}
-            </pre>
+          <div className="rounded-lg bg-muted/40 p-3 space-y-1 text-xs font-mono">
+            <p><span className="text-muted-foreground">Device name:</span> <span className="font-semibold">MilkGuard-ESP32</span></p>
+            <p><span className="text-muted-foreground">Service UUID:</span> 0000a100-0000-1000-8000-00805f9b34fb</p>
+            <p><span className="text-muted-foreground">pH char:</span>      0000a101-... (float32, notify+read)</p>
+            <p><span className="text-muted-foreground">TDS char:</span>     0000a102-... (int16,   notify+read)</p>
+            <p><span className="text-muted-foreground">Gas char:</span>     0000a103-... (int16,   notify+read)</p>
+            <p><span className="text-muted-foreground">Buzzer char:</span>  0000a104-... (uint8,   write)</p>
           </div>
 
           <div className="rounded-lg bg-sidebar p-4 overflow-x-auto">
             <pre className="text-xs text-sidebar-foreground font-mono">
-{`// JSON payload format
-{
-  "ph": 6.65,    // pH sensor reading
-  "tds": 950,    // TDS sensor in ppm
-  "gas": 25      // MQ-135 analog value
+{`#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+
+#define SERVICE_UUID    "0000a100-0000-1000-8000-00805f9b34fb"
+#define CHAR_PH_UUID    "0000a101-0000-1000-8000-00805f9b34fb"
+#define CHAR_TDS_UUID   "0000a102-0000-1000-8000-00805f9b34fb"
+#define CHAR_GAS_UUID   "0000a103-0000-1000-8000-00805f9b34fb"
+#define CHAR_BUZ_UUID   "0000a104-0000-1000-8000-00805f9b34fb"
+
+#define PH_PIN     34   // pH analog
+#define TDS_PIN    35   // TDS analog
+#define GAS_PIN    32   // MQ-135 analog
+#define BUZZER_PIN 25   // MOSFET gate -> buzzer
+
+BLECharacteristic *phCh, *tdsCh, *gasCh;
+
+class BuzCB : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic *c) {
+    auto v = c->getValue();
+    int ms = v.length() ? (uint8_t)v[0] * 100 : 1000;
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(ms);
+    digitalWrite(BUZZER_PIN, LOW);
+  }
+};
+
+void setup() {
+  pinMode(BUZZER_PIN, OUTPUT);
+  BLEDevice::init("MilkGuard-ESP32");
+  auto *server  = BLEDevice::createServer();
+  auto *service = server->createService(SERVICE_UUID);
+
+  phCh  = service->createCharacteristic(CHAR_PH_UUID,
+            BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+  tdsCh = service->createCharacteristic(CHAR_TDS_UUID,
+            BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+  gasCh = service->createCharacteristic(CHAR_GAS_UUID,
+            BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+  auto *buzCh = service->createCharacteristic(CHAR_BUZ_UUID,
+            BLECharacteristic::PROPERTY_WRITE);
+
+  phCh->addDescriptor(new BLE2902());
+  tdsCh->addDescriptor(new BLE2902());
+  gasCh->addDescriptor(new BLE2902());
+  buzCh->setCallbacks(new BuzCB());
+
+  service->start();
+  auto *adv = BLEDevice::getAdvertising();
+  adv->addServiceUUID(SERVICE_UUID);
+  adv->start();
+}
+
+void loop() {
+  // TODO: replace with real sensor calibration
+  float ph  = readPh(analogRead(PH_PIN));
+  int16_t tds = readTds(analogRead(TDS_PIN));
+  int16_t gas = analogRead(GAS_PIN) / 16;  // 0-255 ish
+
+  phCh->setValue((uint8_t*)&ph, 4);     phCh->notify();
+  tdsCh->setValue((uint8_t*)&tds, 2);   tdsCh->notify();
+  gasCh->setValue((uint8_t*)&gas, 2);   gasCh->notify();
+  delay(1000);
 }`}
             </pre>
           </div>
