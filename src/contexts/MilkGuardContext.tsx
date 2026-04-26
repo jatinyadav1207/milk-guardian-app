@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import {
   SensorReadings,
   Baseline,
@@ -8,9 +8,14 @@ import {
   analyzeMilk,
   generateSampleId,
 } from "@/utils/milkAnalysis";
+import { bluetoothClient, MilkGuardBluetooth } from "@/utils/bluetooth";
 
 interface MilkGuardState {
   isDeviceConnected: boolean;
+  connectionType: "none" | "bluetooth" | "simulated";
+  deviceName: string | null;
+  bluetoothSupported: boolean;
+  liveStream: boolean;
   currentReadings: SensorReadings | null;
   tests: TestRecord[];
   baselines: Baseline[];
@@ -23,6 +28,11 @@ interface MilkGuardState {
   setActiveBaseline: (id: string) => void;
   deleteTest: (id: string) => void;
   setDeviceConnected: (v: boolean) => void;
+  connectBluetooth: () => Promise<void>;
+  disconnectBluetooth: () => Promise<void>;
+  refreshReadings: () => Promise<void>;
+  setLiveStream: (v: boolean) => void;
+  triggerBuzzer: () => Promise<void>;
 }
 
 const MilkGuardContext = createContext<MilkGuardState | null>(null);
