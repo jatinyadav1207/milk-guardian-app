@@ -14,7 +14,7 @@ import {
   Activity,
   Play,
   RotateCcw,
-  Zap,
+  Loader2,
 } from "lucide-react";
 import {
   getSensorStatus,
@@ -24,17 +24,21 @@ import {
   analyzeMilk,
 } from "@/utils/milkAnalysis";
 import { WifiConnect } from "@/components/WifiConnect";
+import { useState } from "react";
+import { toast } from "sonner";
 
 export default function Dashboard() {
   const {
     isDeviceConnected,
+    connectionType,
     currentReadings,
     tests,
     activeBaseline,
-    simulateReadings,
     runTest,
     clearReadings,
   } = useMilkGuard();
+
+  const [testing, setTesting] = useState(false);
 
   const totalTests = tests.length;
   const pureCount = tests.filter((t) => t.result.verdict === "pure").length;
@@ -43,12 +47,28 @@ export default function Dashboard() {
 
   const analysis = currentReadings ? analyzeMilk(currentReadings, activeBaseline) : null;
 
-  const handleRunTest = () => {
-    if (!currentReadings) {
-      simulateReadings();
+  const canTest = connectionType === "wifi" && isDeviceConnected;
+
+  const handleRunTest = async () => {
+    if (!canTest) {
+      toast.error("Connect your ESP32 over Wi-Fi first.");
       return;
     }
-    runTest();
+    setTesting(true);
+    try {
+      const rec = await runTest();
+      if (rec.result.verdict === "adulterated") {
+        toast.error(`Adulterated — ${rec.result.summary}`);
+      } else if (rec.result.verdict === "warning") {
+        toast.warning(rec.result.summary);
+      } else {
+        toast.success(`Pure sample ${rec.sampleId} (score ${rec.result.score}/100)`);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Test failed");
+    } finally {
+      setTesting(false);
+    }
   };
 
   const phStatus = currentReadings
@@ -93,12 +113,8 @@ export default function Dashboard() {
               Reset
             </Button>
           )}
-          <Button size="sm" onClick={simulateReadings} variant="outline">
-            <Zap className="h-4 w-4" />
-            Simulate
-          </Button>
-          <Button size="sm" onClick={handleRunTest} disabled={!currentReadings}>
-            <Play className="h-4 w-4" />
+          <Button size="sm" onClick={handleRunTest} disabled={!canTest || testing}>
+            {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
             Run Test
           </Button>
         </div>
@@ -285,16 +301,12 @@ export default function Dashboard() {
         <Card className="border-dashed animate-fade-in">
           <CardContent className="p-8 text-center">
             <div className="flex h-12 w-12 mx-auto items-center justify-center rounded-2xl bg-accent mb-4">
-              <Zap className="h-6 w-6 text-primary" />
+              <AlertTriangle className="h-6 w-6 text-primary" />
             </div>
             <h3 className="font-semibold text-foreground mb-1">No Sensor Data Yet</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Connect your ESP32 device or use the simulate button to preview the dashboard.
+            <p className="text-sm text-muted-foreground">
+              Connect your ESP32 over local Wi-Fi above to start receiving live readings.
             </p>
-            <Button onClick={simulateReadings} size="sm">
-              <Zap className="h-4 w-4" />
-              Simulate Readings
-            </Button>
           </CardContent>
         </Card>
       )}
