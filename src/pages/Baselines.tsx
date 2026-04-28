@@ -13,16 +13,28 @@ import {
   DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, SlidersHorizontal, Check } from "lucide-react";
+import { Plus, Trash2, SlidersHorizontal, Check, Pencil, Wand2 } from "lucide-react";
+import type { Baseline } from "@/utils/milkAnalysis";
+import { toast } from "sonner";
 
 export default function Baselines() {
-  const { baselines, activeBaseline, addBaseline, deleteBaseline, setActiveBaseline } = useMilkGuard();
+  const {
+    baselines,
+    activeBaseline,
+    addBaseline,
+    updateBaseline,
+    deleteBaseline,
+    setActiveBaseline,
+    currentReadings,
+    connectionType,
+  } = useMilkGuard();
   const [name, setName] = useState("");
   const [phMin, setPhMin] = useState("6.5");
   const [phMax, setPhMax] = useState("6.8");
   const [tdsMin, setTdsMin] = useState("700");
   const [tdsMax, setTdsMax] = useState("1200");
   const [gasMax, setGasMax] = useState("50");
+  const [editing, setEditing] = useState<Baseline | null>(null);
 
   const handleAdd = () => {
     if (!name.trim()) return;
@@ -35,11 +47,47 @@ export default function Baselines() {
       gasMax: parseInt(gasMax),
     });
     setName("");
-    setPhMin("6.5");
-    setPhMax("6.8");
-    setTdsMin("700");
-    setTdsMax("1200");
+    setPhMin("6.5"); setPhMax("6.8");
+    setTdsMin("700"); setTdsMax("1200");
     setGasMax("50");
+    toast.success("Baseline created");
+  };
+
+  const handleCalibrate = () => {
+    if (!currentReadings || connectionType !== "wifi") {
+      toast.error("Connect ESP32 and take a live reading first.");
+      return;
+    }
+    const { ph, tds, gas } = currentReadings;
+    setName(`Calibrated ${new Date().toLocaleDateString()}`);
+    setPhMin((ph - 0.15).toFixed(2));
+    setPhMax((ph + 0.15).toFixed(2));
+    setTdsMin(String(Math.max(0, Math.round(tds * 0.85))));
+    setTdsMax(String(Math.round(tds * 1.15)));
+    setGasMax(String(Math.max(20, Math.round(gas * 1.5))));
+    toast.success("Pre-filled from current reading — review and save.");
+  };
+
+  const openEdit = (b: Baseline) => {
+    setEditing(b);
+    setName(b.name);
+    setPhMin(String(b.phMin)); setPhMax(String(b.phMax));
+    setTdsMin(String(b.tdsMin)); setTdsMax(String(b.tdsMax));
+    setGasMax(String(b.gasMax));
+  };
+
+  const handleSaveEdit = () => {
+    if (!editing) return;
+    updateBaseline(editing.id, {
+      name: name.trim() || editing.name,
+      phMin: parseFloat(phMin),
+      phMax: parseFloat(phMax),
+      tdsMin: parseInt(tdsMin),
+      tdsMax: parseInt(tdsMax),
+      gasMax: parseInt(gasMax),
+    });
+    setEditing(null);
+    toast.success("Baseline updated");
   };
 
   return (
