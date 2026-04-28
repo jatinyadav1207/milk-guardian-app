@@ -301,16 +301,12 @@ export default function Dashboard() {
         <Card className="border-dashed animate-fade-in">
           <CardContent className="p-8 text-center">
             <div className="flex h-12 w-12 mx-auto items-center justify-center rounded-2xl bg-accent mb-4">
-              <Zap className="h-6 w-6 text-primary" />
+              <AlertTriangle className="h-6 w-6 text-primary" />
             </div>
             <h3 className="font-semibold text-foreground mb-1">No Sensor Data Yet</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Connect your ESP32 device or use the simulate button to preview the dashboard.
+            <p className="text-sm text-muted-foreground">
+              Connect your ESP32 over local Wi-Fi above to start receiving live readings.
             </p>
-            <Button onClick={simulateReadings} size="sm">
-              <Zap className="h-4 w-4" />
-              Simulate Readings
-            </Button>
           </CardContent>
         </Card>
       )}

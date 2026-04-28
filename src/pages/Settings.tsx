@@ -1,21 +1,40 @@
+import { useRef, useState } from "react";
 import { useMilkGuard } from "@/contexts/MilkGuardContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { WifiConnect } from "@/components/WifiConnect";
 import {
   Bell,
   Code,
   Shield,
-  Zap,
-  Cpu,
   AlertTriangle,
   Wifi,
+  Download,
+  Upload,
+  Trash2,
+  SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Settings() {
-  const { isDeviceConnected, connectionType, simulateReadings, triggerBuzzer } = useMilkGuard();
+  const {
+    isDeviceConnected,
+    connectionType,
+    triggerBuzzer,
+    tests,
+    baselines,
+    settings,
+    updateSettings,
+    clearAllTests,
+    importData,
+  } = useMilkGuard();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [pollMs, setPollMs] = useState(String(settings.pollIntervalMs));
+  const [buzzMs, setBuzzMs] = useState(String(settings.buzzerDurationMs));
 
   const handleBuzzer = async () => {
     try {
@@ -24,6 +43,42 @@ export default function Settings() {
     } catch (e: any) {
       toast.error(e?.message || "Failed to trigger buzzer");
     }
+  };
+
+  const handleExport = () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      app: "MilkGuard",
+      tests,
+      baselines,
+      settings,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `milkguard-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Exported backup");
+  };
+
+  const handleImportFile = async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      importData(data);
+      toast.success("Data imported");
+    } catch (e: any) {
+      toast.error("Invalid backup file");
+    }
+  };
+
+  const handleClearHistory = () => {
+    if (tests.length === 0) return;
+    if (!confirm(`Delete all ${tests.length} test records? This cannot be undone.`)) return;
+    clearAllTests();
+    toast.success("History cleared");
   };
 
   return (
@@ -44,22 +99,105 @@ export default function Settings() {
         <WifiConnect />
       </div>
 
-      {/* Demo */}
+      {/* Preferences */}
       <Card className="animate-slide-up">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Cpu className="h-4 w-4 text-primary" />
-            Demo Mode
+            <SlidersHorizontal className="h-4 w-4 text-primary" />
+            Preferences
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-3">
-            No hardware yet? Generate sample readings to explore the app.
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2">
+            <div>
+              <p className="text-sm font-medium">Auto-trigger buzzer on adulteration</p>
+              <p className="text-xs text-muted-foreground">
+                Sound the ESP32 buzzer automatically when a test verdict is "Adulterated".
+              </p>
+            </div>
+            <Switch
+              checked={settings.autoBuzzerOnAdulterated}
+              onCheckedChange={(v) => updateSettings({ autoBuzzerOnAdulterated: v })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Poll interval (ms)</Label>
+              <Input
+                type="number"
+                min={500}
+                step={100}
+                value={pollMs}
+                onChange={(e) => setPollMs(e.target.value)}
+                onBlur={() => {
+                  const n = Math.max(500, parseInt(pollMs) || 1000);
+                  setPollMs(String(n));
+                  updateSettings({ pollIntervalMs: n });
+                }}
+              />
+            </div>
+            <div>
+              <Label>Buzzer duration (ms)</Label>
+              <Input
+                type="number"
+                min={50}
+                max={5000}
+                step={50}
+                value={buzzMs}
+                onChange={(e) => setBuzzMs(e.target.value)}
+                onBlur={() => {
+                  const n = Math.min(5000, Math.max(50, parseInt(buzzMs) || 1500));
+                  setBuzzMs(String(n));
+                  updateSettings({ buzzerDurationMs: n });
+                }}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Data management */}
+      <Card className="animate-slide-up">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Download className="h-4 w-4 text-primary" />
+            Data
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {tests.length} tests, {baselines.length} baselines stored on this device.
           </p>
-          <Button variant="outline" size="sm" onClick={simulateReadings}>
-            <Zap className="h-4 w-4" />
-            Simulate Data
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="h-4 w-4" />
+              Export backup (.json)
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+              <Upload className="h-4 w-4" />
+              Import backup
+            </Button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleImportFile(f);
+                e.target.value = "";
+              }}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearHistory}
+              className="text-milkguard-danger hover:text-milkguard-danger"
+            >
+              <Trash2 className="h-4 w-4" />
+              Clear test history
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
