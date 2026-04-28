@@ -8,13 +8,12 @@ import {
   analyzeMilk,
   generateSampleId,
 } from "@/utils/milkAnalysis";
-import { bluetoothClient, MilkGuardBluetooth } from "@/utils/bluetooth";
+import { wifiClient } from "@/utils/wifi";
 
 interface MilkGuardState {
   isDeviceConnected: boolean;
-  connectionType: "none" | "bluetooth" | "simulated";
+  connectionType: "none" | "wifi" | "simulated";
   deviceName: string | null;
-  bluetoothSupported: boolean;
   liveStream: boolean;
   currentReadings: SensorReadings | null;
   tests: TestRecord[];
@@ -28,8 +27,8 @@ interface MilkGuardState {
   setActiveBaseline: (id: string) => void;
   deleteTest: (id: string) => void;
   setDeviceConnected: (v: boolean) => void;
-  connectBluetooth: () => Promise<void>;
-  disconnectBluetooth: () => Promise<void>;
+  connectWifi: (address: string) => Promise<void>;
+  disconnectWifi: () => void;
   refreshReadings: () => Promise<void>;
   setLiveStream: (v: boolean) => void;
   triggerBuzzer: () => Promise<void>;
@@ -48,7 +47,7 @@ function loadFromStorage<T>(key: string, fallback: T): T {
 
 export function MilkGuardProvider({ children }: { children: React.ReactNode }) {
   const [isDeviceConnected, setDeviceConnected] = useState(false);
-  const [connectionType, setConnectionType] = useState<"none" | "bluetooth" | "simulated">("none");
+  const [connectionType, setConnectionType] = useState<"none" | "wifi" | "simulated">("none");
   const [deviceName, setDeviceName] = useState<string | null>(null);
   const [liveStream, setLiveStreamState] = useState(true);
   const [currentReadings, setCurrentReadings] = useState<SensorReadings | null>(null);
@@ -59,7 +58,6 @@ export function MilkGuardProvider({ children }: { children: React.ReactNode }) {
   const [activeBaselineId, setActiveBaselineId] = useState<string>(() =>
     loadFromStorage("mg_active_baseline", "default")
   );
-  const bluetoothSupported = MilkGuardBluetooth.isSupported();
 
   const activeBaseline = baselines.find((b) => b.id === activeBaselineId) || baselines[0] || DEFAULT_BASELINE;
 
@@ -69,17 +67,16 @@ export function MilkGuardProvider({ children }: { children: React.ReactNode }) {
 
   const simulateReadings = useCallback(() => {
     const scenarios = [
-      { ph: 6.6, tds: 950, gas: 20 },   // pure
-      { ph: 6.65, tds: 880, gas: 15 },   // pure
-      { ph: 7.2, tds: 850, gas: 25 },    // soda
-      { ph: 6.3, tds: 900, gas: 30 },    // acid
-      { ph: 6.7, tds: 450, gas: 18 },    // water dilution
-      { ph: 6.6, tds: 1400, gas: 22 },   // urea/salt
-      { ph: 6.7, tds: 900, gas: 80 },    // ammonia
-      { ph: 7.1, tds: 500, gas: 90 },    // multiple
+      { ph: 6.6, tds: 950, gas: 20 },
+      { ph: 6.65, tds: 880, gas: 15 },
+      { ph: 7.2, tds: 850, gas: 25 },
+      { ph: 6.3, tds: 900, gas: 30 },
+      { ph: 6.7, tds: 450, gas: 18 },
+      { ph: 6.6, tds: 1400, gas: 22 },
+      { ph: 6.7, tds: 900, gas: 80 },
+      { ph: 7.1, tds: 500, gas: 90 },
     ];
     const r = scenarios[Math.floor(Math.random() * scenarios.length)];
-    // Add slight randomness
     setCurrentReadings({
       ph: +(r.ph + (Math.random() - 0.5) * 0.1).toFixed(2),
       tds: Math.round(r.tds + (Math.random() - 0.5) * 50),
@@ -90,15 +87,15 @@ export function MilkGuardProvider({ children }: { children: React.ReactNode }) {
     setDeviceName("Simulator");
   }, []);
 
-  // Bluetooth wiring
+  // Wi-Fi wiring
   const liveStreamRef = useRef(liveStream);
   useEffect(() => { liveStreamRef.current = liveStream; }, [liveStream]);
 
   useEffect(() => {
-    bluetoothClient.onReadings((r) => {
+    wifiClient.onReadings((r) => {
       if (liveStreamRef.current) setCurrentReadings(r);
     });
-    bluetoothClient.onStatus((connected) => {
+    wifiClient.onStatus((connected) => {
       setDeviceConnected(connected);
       if (!connected) {
         setConnectionType("none");
@@ -107,46 +104,44 @@ export function MilkGuardProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const connectBluetooth = useCallback(async () => {
-    await bluetoothClient.connect();
-    setConnectionType("bluetooth");
-    setDeviceName(bluetoothClient.deviceName());
+  const connectWifi = useCallback(async (address: string) => {
+    const r = await wifiClient.connect(address);
+    setCurrentReadings(r);
+    setConnectionType("wifi");
+    setDeviceName(wifiClient.getBaseUrl());
     setDeviceConnected(true);
     if (liveStreamRef.current) {
-      await bluetoothClient.startNotifications();
-    } else {
-      await bluetoothClient.readOnce();
+      wifiClient.startPolling(1000);
     }
   }, []);
 
-  const disconnectBluetooth = useCallback(async () => {
-    await bluetoothClient.disconnect();
+  const disconnectWifi = useCallback(() => {
+    wifiClient.disconnect();
     setConnectionType("none");
     setDeviceName(null);
     setDeviceConnected(false);
   }, []);
 
   const refreshReadings = useCallback(async () => {
-    if (connectionType === "bluetooth") {
-      const r = await bluetoothClient.readOnce();
+    if (connectionType === "wifi") {
+      const r = await wifiClient.readOnce();
       if (r) setCurrentReadings(r);
-    } else {
-      // fallback: re-simulate
-      // (no-op if not connected)
     }
   }, [connectionType]);
 
   const setLiveStream = useCallback((v: boolean) => {
     setLiveStreamState(v);
-    if (connectionType === "bluetooth") {
-      if (v) bluetoothClient.startNotifications().catch(() => {});
-      else bluetoothClient.stopNotifications().catch(() => {});
+    if (connectionType === "wifi") {
+      if (v) wifiClient.startPolling(1000);
+      else wifiClient.stopPolling();
     }
   }, [connectionType]);
 
   const triggerBuzzer = useCallback(async () => {
-    if (connectionType === "bluetooth") {
-      await bluetoothClient.triggerBuzzer(1000);
+    if (connectionType === "wifi") {
+      await wifiClient.triggerBuzzer(1000);
+    } else {
+      throw new Error("Connect to ESP32 over Wi-Fi first.");
     }
   }, [connectionType]);
 
@@ -194,7 +189,6 @@ export function MilkGuardProvider({ children }: { children: React.ReactNode }) {
         isDeviceConnected,
         connectionType,
         deviceName,
-        bluetoothSupported,
         liveStream,
         currentReadings,
         tests,
@@ -208,8 +202,8 @@ export function MilkGuardProvider({ children }: { children: React.ReactNode }) {
         setActiveBaseline,
         deleteTest,
         setDeviceConnected,
-        connectBluetooth,
-        disconnectBluetooth,
+        connectWifi,
+        disconnectWifi,
         refreshReadings,
         setLiveStream,
         triggerBuzzer,
