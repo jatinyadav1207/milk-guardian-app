@@ -12,11 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Trash2, FlaskConical } from "lucide-react";
+import { Search, Trash2, FlaskConical, Download } from "lucide-react";
 import { getVerdictLabel, getVerdictColor } from "@/utils/milkAnalysis";
+import { toast } from "sonner";
 
 export default function TestHistory() {
-  const { tests, deleteTest } = useMilkGuard();
+  const { tests, deleteTest, clearAllTests } = useMilkGuard();
   const [search, setSearch] = useState("");
 
   const filtered = tests.filter(
@@ -28,11 +29,64 @@ export default function TestHistory() {
       )
   );
 
+  const exportCsv = () => {
+    if (tests.length === 0) return;
+    const rows = [
+      ["Sample ID", "Timestamp", "pH", "TDS (ppm)", "Gas", "Verdict", "Score", "Contaminants", "Summary"],
+      ...tests.map((t) => [
+        t.sampleId,
+        t.timestamp,
+        t.readings.ph.toFixed(2),
+        String(t.readings.tds),
+        String(t.readings.gas),
+        t.result.verdict,
+        String(t.result.score),
+        t.result.contaminants.map((c) => c.type).join("; "),
+        t.result.summary.replace(/\s+/g, " "),
+      ]),
+    ];
+    const csv = rows
+      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `milkguard-tests-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Exported CSV");
+  };
+
+  const handleClear = () => {
+    if (!confirm(`Delete all ${tests.length} tests?`)) return;
+    clearAllTests();
+    toast.success("History cleared");
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-6xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Test History</h1>
-        <p className="text-sm text-muted-foreground">View and search all past milk quality tests</p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Test History</h1>
+          <p className="text-sm text-muted-foreground">View and search all past milk quality tests</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={tests.length === 0}>
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleClear}
+            disabled={tests.length === 0}
+            className="text-milkguard-danger hover:text-milkguard-danger"
+          >
+            <Trash2 className="h-4 w-4" />
+            Clear all
+          </Button>
+        </div>
       </div>
 
       <div className="relative">
